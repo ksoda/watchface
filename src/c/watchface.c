@@ -20,6 +20,25 @@ static TextLayer *s_time_layer;
 //   window_single_click_subscribe(BUTTON_ID_UP, prv_up_click_handler);
 //   window_single_click_subscribe(BUTTON_ID_DOWN, prv_down_click_handler);
 // }
+static void update_time() {
+  // Get a tm structure
+  time_t temp = time(NULL);
+  struct tm *tick_time = localtime(&temp);
+
+  // Write the current hours and minutes into a buffer
+  static char s_buffer[8];
+  strftime(
+    s_buffer, sizeof(s_buffer),
+    clock_is_24h_style() ? "%H:%M" : "%I:%M", tick_time
+  );
+
+  // Display this time on the TextLayer
+  text_layer_set_text(s_time_layer, s_buffer);
+}
+
+static void tick_handler(struct tm *tick_time, TimeUnits units_changed) {
+  update_time();
+}
 
 static void prv_window_load(Window *window) {
   // Get information about the Window
@@ -33,7 +52,6 @@ static void prv_window_load(Window *window) {
   // Improve the layout to be more like a watchface
   text_layer_set_background_color(s_time_layer, GColorClear);
   text_layer_set_text_color(s_time_layer, GColorBlack);
-  text_layer_set_text(s_time_layer, "00:00");
   text_layer_set_font(s_time_layer, fonts_get_system_font(FONT_KEY_BITHAM_42_BOLD));
   text_layer_set_text_alignment(s_time_layer, GTextAlignmentCenter);
 
@@ -49,6 +67,8 @@ static void prv_window_unload(Window *window) {
 static void prv_init(void) {
   // Create main Window element and assign to pointer
   s_window = window_create();
+  // Register with TickTimerService
+  tick_timer_service_subscribe(MINUTE_UNIT, tick_handler);
   // window_set_click_config_provider(s_window, prv_click_config_provider);
 
   // Set handlers to manage the elements inside the Window
@@ -60,6 +80,9 @@ static void prv_init(void) {
   // Show the Window on the watch, with animated=true
   const bool animated = true;
   window_stack_push(s_window, animated);
+
+  // Make sure the time is displayed from the start
+  update_time();
 }
 
 static void prv_deinit(void) {
